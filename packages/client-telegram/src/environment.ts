@@ -15,6 +15,10 @@ export async function validateTelegramConfig(
             TELEGRAM_BOT_TOKEN:
                 runtime.getSetting("TELEGRAM_BOT_TOKEN") ||
                 process.env.TELEGRAM_BOT_TOKEN,
+            TELEGRAM_WHITELISTED_USERNAMES:
+                runtime.getSetting("TELEGRAM_WHITELISTED_USERNAMES") ||
+                process.env.TELEGRAM_WHITELISTED_USERNAMES ||
+                "",
         };
 
         return telegramEnvSchema.parse(config);
