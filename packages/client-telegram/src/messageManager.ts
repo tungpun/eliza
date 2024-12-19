@@ -802,8 +802,11 @@ export class MessageManager {
             const userName =
                 ctx.from.username || ctx.from.first_name || "Unknown User";
 
-            if (this.runtime.getSetting("TELEGRAM_WHITELISTED_USERNAMES") != "") {
-                const whitelist = this.runtime.getSetting("TELEGRAM_WHITELISTED_USERNAMES").split(",");
+            elizaLogger.info(`the whitelist is ${this.runtime.getSetting("TELEGRAM_WHITELISTED_USERNAMES")}`);
+
+            if (this.runtime.getSetting("TELEGRAM_WHITELISTED_USERNAMES")) {
+                const telegramWhitelistedUsernames = this.runtime.getSetting("TELEGRAM_WHITELISTED_USERNAMES");
+                const whitelist = telegramWhitelistedUsernames.split(",");
                 if (!whitelist.includes(userName)) {
                     elizaLogger.warn(`❌ User ${userName} is not in the whitelist`);
                     return; // Skip if not in whitelist
