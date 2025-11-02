@@ -30,9 +30,9 @@ import sqlPlugin, {
   createDatabaseAdapter,
   DatabaseMigrationService,
   installRLSFunctions,
-  getOrCreateRlsOwner,
-  setOwnerContext,
-  assignAgentToOwner,
+  getOrCreateRlsServer,
+  setServerContext,
+  assignAgentToServer,
   applyRLSToNewTables,
   uninstallRLS,
 } from '@elizaos/plugin-sql';
@@ -177,7 +177,7 @@ export class AgentServer {
   public elizaOS?: ElizaOS; // Core ElizaOS instance (public for direct access)
 
   public database!: DatabaseAdapter;
-  private rlsOwnerId?: UUID;
+  private rlsServerId?: UUID;
   public serverId: UUID = DEFAULT_SERVER_ID;
 
   public loadCharacterTryPath!: (characterPath: string) => Promise<Character>;
@@ -239,9 +239,9 @@ export class AgentServer {
               );
             }
 
-            // Assign agent to owner if RLS is enabled
-            if (this.rlsOwnerId) {
-              await assignAgentToOwner(this.database, runtime.agentId, this.rlsOwnerId);
+            // Assign agent to server if RLS is enabled
+            if (this.rlsServerId) {
+              await assignAgentToServer(this.database, runtime.agentId, this.rlsServerId);
             }
           } catch (error) {
             logger.error({ error }, `Failed to persist agent ${runtime.agentId} to database`);
@@ -376,7 +376,7 @@ export class AgentServer {
       }
 
       const rlsEnabled = process.env.ENABLE_RLS_ISOLATION === 'true';
-      const rlsOwnerIdString = process.env.RLS_OWNER_ID;
+      const rlsServerIdString = process.env.RLS_SERVER_ID;
 
       if (rlsEnabled) {
         if (!config?.postgresUrl) {
@@ -384,16 +384,16 @@ export class AgentServer {
           throw new Error('RLS isolation requires PostgreSQL database');
         }
 
-        if (!rlsOwnerIdString) {
-          logger.error('[RLS] ENABLE_RLS_ISOLATION requires RLS_OWNER_ID environment variable');
-          throw new Error('RLS_OWNER_ID environment variable is required when RLS is enabled');
+        if (!rlsServerIdString) {
+          logger.error('[RLS] ENABLE_RLS_ISOLATION requires RLS_SERVER_ID environment variable');
+          throw new Error('RLS_SERVER_ID environment variable is required when RLS is enabled');
         }
 
-        // Convert RLS_OWNER_ID string to deterministic UUID
-        const owner_id = stringToUuid(rlsOwnerIdString);
+        // Convert RLS_SERVER_ID string to deterministic UUID
+        const server_id = stringToUuid(rlsServerIdString);
 
         logger.info('[INIT] Initializing RLS multi-tenant isolation...');
-        logger.info(`[RLS] Tenant ID: ${owner_id.slice(0, 8)}… (from RLS_OWNER_ID="${rlsOwnerIdString}")`);
+        logger.info(`[RLS] Server ID: ${server_id.slice(0, 8)}… (from RLS_SERVER_ID="${rlsServerIdString}")`);
         logger.warn('[RLS] Ensure your PostgreSQL user is NOT a superuser!');
         logger.warn('[RLS] Superusers bypass ALL RLS policies, defeating isolation.');
 
@@ -401,16 +401,16 @@ export class AgentServer {
           // Install RLS PostgreSQL functions (includes Entity RLS)
           await installRLSFunctions(this.database);
 
-          // Get or create owner with the provided owner ID
-          await getOrCreateRlsOwner(this.database, owner_id);
+          // Get or create server with the provided server ID
+          await getOrCreateRlsServer(this.database, server_id);
 
-          // Store owner_id for agent assignment
-          this.rlsOwnerId = owner_id as UUID;
+          // Store server_id for agent assignment
+          this.rlsServerId = server_id as UUID;
 
           // Set RLS context for this server instance
-          await setOwnerContext(this.database, owner_id);
+          await setServerContext(this.database, server_id);
 
-          // Apply RLS to all tables (Owner RLS policies applied here, Entity RLS already applied during installRLSFunctions)
+          // Apply RLS to all tables (Server RLS policies applied here, Entity RLS already applied during installRLSFunctions)
           await applyRLSToNewTables(this.database);
 
           logger.success('[INIT] RLS multi-tenant isolation initialized successfully');
@@ -476,13 +476,33 @@ export class AgentServer {
 
   private async ensureDefaultServer(): Promise<void> {
     try {
-      // When RLS is enabled, create a server per owner instead of a shared default server
+      // When RLS is enabled, create a server per server instance instead of a shared default server
       const rlsEnabled = process.env.ENABLE_RLS_ISOLATION === 'true';
-      this.serverId = rlsEnabled && this.rlsOwnerId
-        ? (this.rlsOwnerId as UUID)
-        : '00000000-0000-0000-0000-000000000000';
-      const serverName = rlsEnabled && this.rlsOwnerId
-        ? `Server ${this.rlsOwnerId.substring(0, 8)}`
+
+      // Security: Separate RLS server_id (internal) from message_servers.id (public API)
+      // - rlsServerId: Used for PostgreSQL RLS isolation (from RLS_SERVER_ID env var)
+      // - serverId: Used for message_servers.id (random UUID, exposed in API)
+      // This prevents leaking sensitive RLS_SERVER_ID values in public API paths
+      if (rlsEnabled && this.rlsServerId) {
+        // Check if a message_server already exists for this RLS server instance
+        const existingServer = await (this.database as any).getMessageServerByRlsServerId(this.rlsServerId);
+
+        if (existingServer) {
+          // Reuse existing message_server ID (stable across restarts)
+          this.serverId = existingServer.id;
+          logger.info(`[AgentServer] Found existing message_server ${this.serverId} for RLS server ${this.rlsServerId.substring(0, 8)}...`);
+        } else {
+          // First boot: generate new random UUID for message_server (will be linked to rlsServerId via server_id column)
+          this.serverId = crypto.randomUUID() as UUID;
+          logger.info(`[AgentServer] Generating new message_server ID ${this.serverId} for RLS server ${this.rlsServerId.substring(0, 8)}...`);
+        }
+      } else {
+        // RLS disabled: use shared default server
+        this.serverId = '00000000-0000-0000-0000-000000000000';
+      }
+
+      const serverName = rlsEnabled && this.rlsServerId
+        ? `Server ${this.serverId.substring(0, 8)}`
         : 'Default Server';
 
       logger.info(`[AgentServer] Checking for server ${this.serverId}...`);
