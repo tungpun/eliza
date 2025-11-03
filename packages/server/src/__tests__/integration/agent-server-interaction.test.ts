@@ -97,7 +97,7 @@ describe('Agent-Server Interaction Integration Tests', () => {
       const agent1Id = agent1.agentId;
 
       // Verify agent is registered
-      const agents = await agentServer.getAgentsForServer(
+      const agents = await agentServer.getAgentsForMessageServer(
         '00000000-0000-0000-0000-000000000000' as UUID
       );
       expect(agents).toContain(agent1Id);
@@ -135,7 +135,7 @@ describe('Agent-Server Interaction Integration Tests', () => {
       expect(agent1).toBeDefined();
       expect(agent2).toBeDefined();
 
-      const agents = await agentServer.getAgentsForServer(
+      const agents = await agentServer.getAgentsForMessageServer(
         '00000000-0000-0000-0000-000000000000' as UUID
       );
       expect(agents).toContain(agent1.agentId);
@@ -197,7 +197,7 @@ describe('Agent-Server Interaction Integration Tests', () => {
         metadata: {},
       });
 
-      const server = await agentServer.getServerBySourceType('discord');
+      const server = await agentServer.getMessageServerBySourceType('discord');
       expect(server).toBeDefined();
       expect(server?.sourceType).toBe('discord');
     });
@@ -466,45 +466,45 @@ describe('Agent-Server Interaction Integration Tests', () => {
       // Don't stop the test agent here - it will be cleaned up in the main afterAll
     });
 
-    it('should add agent to server', async () => {
-      await agentServer.addAgentToServer(serverId, testAgentId);
+    it('should add agent to message server', async () => {
+      await agentServer.addAgentToMessageServer(serverId, testAgentId);
 
-      const agents = await agentServer.getAgentsForServer(serverId);
+      const agents = await agentServer.getAgentsForMessageServer(serverId);
       expect(agents).toContain(testAgentId);
     });
 
-    it('should remove agent from server', async () => {
-      await agentServer.addAgentToServer(serverId, testAgentId);
-      await agentServer.removeAgentFromServer(serverId, testAgentId);
+    it('should remove agent from message server', async () => {
+      await agentServer.addAgentToMessageServer(serverId, testAgentId);
+      await agentServer.removeAgentFromMessageServer(serverId, testAgentId);
 
-      const agents = await agentServer.getAgentsForServer(serverId);
+      const agents = await agentServer.getAgentsForMessageServer(serverId);
       expect(agents).not.toContain(testAgentId);
     });
 
-    it('should get servers for agent', async () => {
+    it('should get message servers for agent', async () => {
       const newServer = await agentServer.createServer({
         name: 'Additional Server for Association',
         sourceType: 'test-association',
         metadata: {},
       });
 
-      await agentServer.addAgentToServer(serverId, testAgentId);
-      await agentServer.addAgentToServer(newServer.id, testAgentId);
+      await agentServer.addAgentToMessageServer(serverId, testAgentId);
+      await agentServer.addAgentToMessageServer(newServer.id, testAgentId);
 
-      const servers = await agentServer.getServersForAgent(testAgentId);
+      const servers = await agentServer.getMessageServersForAgent(testAgentId);
       expect(servers).toContain(serverId);
       expect(servers).toContain(newServer.id);
 
       // Clean up
-      await agentServer.removeAgentFromServer(serverId, testAgentId);
-      await agentServer.removeAgentFromServer(newServer.id, testAgentId);
+      await agentServer.removeAgentFromMessageServer(serverId, testAgentId);
+      await agentServer.removeAgentFromMessageServer(newServer.id, testAgentId);
     });
 
-    it('should handle adding agent to non-existent server', async () => {
+    it('should handle adding agent to non-existent message server', async () => {
       const fakeServerId = 'non-existent-server' as UUID;
       const fakeAgentId = 'test-agent-fake' as UUID;
 
-      await expect(agentServer.addAgentToServer(fakeServerId, fakeAgentId)).rejects.toThrow();
+      await expect(agentServer.addAgentToMessageServer(fakeServerId, fakeAgentId)).rejects.toThrow();
     });
   });
 
@@ -540,10 +540,10 @@ describe('Agent-Server Interaction Integration Tests', () => {
         const agentId = agent.agentId;
 
         // Get initial agent count
-        const initialAgents = await isolatedServer.getAgentsForServer(
+        const initialAgents = await isolatedServer.database.getAgentsForMessageServer(
           '00000000-0000-0000-0000-000000000000' as UUID
         );
-        const initialCount = initialAgents.filter((id) => id === agentId).length;
+        const initialCount = initialAgents.filter((id: UUID) => id === agentId).length;
         expect(initialCount).toBe(1);
 
         // Unregister the agent

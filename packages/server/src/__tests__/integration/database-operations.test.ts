@@ -298,9 +298,9 @@ describe('Database Operations Integration Tests', () => {
       const afterCreateServers = await agentServer.getServers();
       expect(afterCreateServers).toHaveLength(initialServerCount + 1);
 
-      // Add agent to server
-      await agentServer.addAgentToServer(newServer.id, agentId);
-      const agentsOnServer = await agentServer.getAgentsForServer(newServer.id);
+      // Add agent to message server
+      await agentServer.addAgentToMessageServer(newServer.id, agentId);
+      const agentsOnServer = await agentServer.getAgentsForMessageServer(newServer.id);
       expect(agentsOnServer).toContain(agentId);
 
       // Create channel on server
@@ -315,9 +315,9 @@ describe('Database Operations Integration Tests', () => {
       const serverChannels = await agentServer.getChannelsForServer(newServer.id);
       expect(serverChannels.some((c) => c.id === channel.id)).toBe(true);
 
-      // Remove agent from server
-      await agentServer.removeAgentFromServer(newServer.id, agentId);
-      const agentsAfterRemoval = await agentServer.getAgentsForServer(newServer.id);
+      // Remove agent from message server
+      await agentServer.removeAgentFromMessageServer(newServer.id, agentId);
+      const agentsAfterRemoval = await agentServer.getAgentsForMessageServer(newServer.id);
       expect(agentsAfterRemoval).not.toContain(agentId);
 
       // Channel should still exist

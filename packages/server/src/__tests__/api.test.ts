@@ -23,8 +23,8 @@ mock.module('@elizaos/plugin-sql', () => ({
     createMessageServer: jest.fn(() =>
       Promise.resolve({ id: '00000000-0000-0000-0000-000000000000' })
     ),
-    getAgentsForServer: jest.fn(() => Promise.resolve([])),
-    addAgentToServer: jest.fn(() => Promise.resolve(undefined)),
+    getAgentsForMessageServer: jest.fn(() => Promise.resolve([])),
+    addAgentToMessageServer: jest.fn(() => Promise.resolve(undefined)),
     db: { execute: jest.fn(() => Promise.resolve([])) },
   })),
   DatabaseMigrationService: jest.fn(() => ({

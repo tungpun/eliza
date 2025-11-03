@@ -40,10 +40,10 @@ mock.module('@elizaos/plugin-sql', () => ({
     getMessageServerById: jest
       .fn()
       .mockResolvedValue({ id: '00000000-0000-0000-0000-000000000000', name: 'Default Server' }),
-    addAgentToServer: jest.fn().mockResolvedValue(undefined),
+    addAgentToMessageServer: jest.fn().mockResolvedValue(undefined),
     getChannelsForServer: jest.fn().mockResolvedValue([]),
     createChannel: jest.fn().mockResolvedValue({ id: '123e4567-e89b-12d3-a456-426614174000' }),
-    getAgentsForServer: jest.fn().mockResolvedValue([]),
+    getAgentsForMessageServer: jest.fn().mockResolvedValue([]),
     db: { execute: jest.fn().mockResolvedValue([]) },
   })),
   DatabaseMigrationService: jest.fn(() => ({
@@ -87,8 +87,8 @@ describe('AgentServer Database Operations Tests', () => {
       getChannelsForServer: jest.fn().mockResolvedValue([]),
       createMessage: jest.fn().mockResolvedValue({ id: 'message-id' }),
       getMessagesForChannel: jest.fn().mockResolvedValue([]),
-      addAgentToServer: jest.fn().mockResolvedValue(undefined),
-      getAgentsForServer: jest.fn().mockResolvedValue([]),
+      addAgentToMessageServer: jest.fn().mockResolvedValue(undefined),
+      getAgentsForMessageServer: jest.fn().mockResolvedValue([]),
     } as any;
   });
 
@@ -130,24 +130,24 @@ describe('AgentServer Database Operations Tests', () => {
     expect(result.name).toBe('Test Channel');
   });
 
-  it('should add agent to server', async () => {
+  it('should add agent to message server', async () => {
     const serverId = '11111111-1111-1111-1111-111111111111' as UUID;
     const agentId = '22222222-2222-2222-2222-222222222222' as UUID;
 
-    await server.addAgentToServer(serverId, agentId);
+    await server.addAgentToMessageServer(serverId, agentId);
 
     expect((server.database as any).getMessageServerById).toHaveBeenCalledWith(serverId);
-    expect((server.database as any).addAgentToServer).toHaveBeenCalledWith(serverId, agentId);
+    expect((server.database as any).addAgentToMessageServer).toHaveBeenCalledWith(serverId, agentId);
   });
 
-  it('should throw error when adding agent to non-existent server', async () => {
+  it('should throw error when adding agent to non-existent message server', async () => {
     (server.database as any).getMessageServerById = jest.fn().mockResolvedValue(null);
 
     const serverId = '33333333-3333-3333-3333-333333333333' as UUID;
     const agentId = '22222222-2222-2222-2222-222222222222' as UUID;
 
-    await expect(server.addAgentToServer(serverId, agentId)).rejects.toThrow(
-      'Server 33333333-3333-3333-3333-333333333333 not found'
+    await expect(server.addAgentToMessageServer(serverId, agentId)).rejects.toThrow(
+      'Message server 33333333-3333-3333-3333-333333333333 not found'
     );
   });
 });
