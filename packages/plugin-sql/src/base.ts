@@ -3235,9 +3235,9 @@ export abstract class BaseDrizzleAdapter extends DatabaseAdapter<any> {
         await tx.insert(channelTable).values(channelToInsert);
 
         if (participantIds && participantIds.length > 0) {
-          const participantValues = participantIds.map((userId) => ({
+          const participantValues = participantIds.map((entityId) => ({
             channelId: newId,
-            userId: userId,
+            entityId: entityId,
           }));
           await tx.insert(channelParticipantsTable).values(participantValues).onConflictDoNothing();
         }
@@ -3540,9 +3540,9 @@ export abstract class BaseDrizzleAdapter extends DatabaseAdapter<any> {
 
           // Add new participants
           if (updates.participantCentralUserIds.length > 0) {
-            const participantValues = updates.participantCentralUserIds.map((userId) => ({
+            const participantValues = updates.participantCentralUserIds.map((entityId) => ({
               channelId: channelId,
-              userId: userId,
+              entityId: entityId,
             }));
             await tx
               .insert(channelParticipantsTable)
