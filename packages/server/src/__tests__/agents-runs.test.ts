@@ -11,7 +11,17 @@ type LogEntry = {
 
 function makeRuntimeWithLogs(logs: LogEntry[]) {
   return {
-    getLogs: async (_params: any) => logs,
+    getLogs: async (params: any) => {
+      // Filter by type if provided
+      if (params.type) {
+        return logs.filter(l => l.type === params.type);
+      }
+      return logs;
+    },
+    getMemories: async (_params: any) => [],
+    getParticipantsForRoom: async (_roomId: UUID) => [] as UUID[],
+    getAllWorlds: async () => [],
+    getRooms: async (_worldId: UUID) => [],
   } as any;
 }
 
@@ -84,11 +94,14 @@ describe('Agent Runs API', () => {
     },
   ];
 
-  const agents = new Map<UUID, any>([[agentId, makeRuntimeWithLogs(logs)]]);
+  const runtime = makeRuntimeWithLogs(logs);
+  const elizaOS = {
+    getAgent: (id: UUID) => (id === agentId ? runtime : undefined),
+  } as any;
 
   beforeEach((done) => {
     app = express();
-    app.use('/api/agents', createAgentRunsRouter(agents));
+    app.use('/api/agents', createAgentRunsRouter(elizaOS));
 
     server = app.listen(0, () => {
       port = server.address().port;

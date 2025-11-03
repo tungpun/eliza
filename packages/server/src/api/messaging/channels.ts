@@ -76,7 +76,7 @@ export function createChannelsRouter(
 
   // GUI posts NEW messages from a user here
   (router as any).post(
-    '/central-channels/:channelId/messages',
+    '/channels/:channelId/messages',
     async (req: express.Request, res: express.Response) => {
       const channelIdParam = validateUuid(req.params.channelId);
       const {
@@ -90,7 +90,7 @@ export function createChannelsRouter(
       } = req.body;
 
       // Validate server ID
-      const isValidServerId = server_id === serverInstance.serverId;
+      const isValidServerId = server_id === serverInstance.messageServerId;
 
       if (!channelIdParam || !validateUuid(author_id) || !content || !validateUuid(server_id)) {
         return res.status(400).json({
@@ -233,7 +233,7 @@ export function createChannelsRouter(
         const messageForBus: MessageService = {
           id: createdRootMessage.id,
           channel_id: createdRootMessage.channelId,
-          server_id: server_id as UUID,
+          message_server_id: server_id as UUID,
           author_id: createdRootMessage.authorId,
           content: createdRootMessage.content,
           created_at: new Date(createdRootMessage.createdAt).getTime(),
@@ -247,7 +247,7 @@ export function createChannelsRouter(
 
         internalMessageBus.emit('new_message', messageForBus);
         logger.info(
-          '[Messages Router /central-channels/:channelId/messages] GUI Message published to internal bus:',
+          '[Messages Router /channels/:channelId/messages] GUI Message published to internal bus:',
           messageForBus.id
         );
 
@@ -258,7 +258,7 @@ export function createChannelsRouter(
             senderName: metadata?.user_display_name || 'User',
             text: content,
             roomId: channelIdParam, // GUI uses central channelId as roomId for socket
-            serverId: server_id, // Client layer uses serverId
+            messageServerId: server_id, // Client layer uses messageServerId
             createdAt: messageForBus.created_at,
             source: messageForBus.source_type,
             id: messageForBus.id,
@@ -268,7 +268,7 @@ export function createChannelsRouter(
         res.status(201).json({ success: true, data: messageForBus });
       } catch (error) {
         logger.error(
-          '[Messages Router /central-channels/:channelId/messages] Error processing GUI message:',
+          '[Messages Router /channels/:channelId/messages] Error processing GUI message:',
           error instanceof Error ? error.message : String(error)
         );
         res.status(500).json({ success: false, error: 'Failed to process message' });
@@ -278,7 +278,7 @@ export function createChannelsRouter(
 
   // GET messages for a central channel
   (router as any).get(
-    '/central-channels/:channelId/messages',
+    '/channels/:channelId/messages',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 50;
@@ -325,7 +325,7 @@ export function createChannelsRouter(
         res.json({ success: true, data: { messages: messagesForGui } });
       } catch (error) {
         logger.error(
-          `[Messages Router /central-channels/:channelId/messages] Error fetching messages for channel ${channelId}:`,
+          `[Messages Router /channels/:channelId/messages] Error fetching messages for channel ${channelId}:`,
           error instanceof Error ? error.message : String(error)
         );
         res.status(500).json({ success: false, error: 'Failed to fetch messages' });
@@ -333,80 +333,26 @@ export function createChannelsRouter(
     }
   );
 
-  // GET /central-servers/:serverId/channels
+  // GET /message-servers/:messageServerId/channels
   (router as any).get(
-    '/central-servers/:serverId/channels',
+    '/message-servers/:messageServerId/channels',
     async (req: express.Request, res: express.Response) => {
-      const serverId = validateUuid(req.params.serverId);
-      if (!serverId) {
-        return res.status(400).json({ success: false, error: 'Invalid serverId' });
+      const messageServerId = validateUuid(req.params.messageServerId);
+      if (!messageServerId) {
+        return res.status(400).json({ success: false, error: 'Invalid messageServerId' });
       }
       try {
-        const channels = await serverInstance.getChannelsForServer(serverId);
+        const channels = await serverInstance.getChannelsForMessageServer(messageServerId);
         res.json({ success: true, data: { channels } });
       } catch (error) {
         logger.error(
-          `[Messages Router /central-servers/:serverId/channels] Error fetching channels for server ${serverId}:`,
+          `[Messages Router /message-servers/:messageServerId/channels] Error fetching channels for message server ${messageServerId}:`,
           error instanceof Error ? error.message : String(error)
         );
         res.status(500).json({ success: false, error: 'Failed to fetch channels' });
       }
     }
   );
-
-  // POST /channels - Create a new central channel
-  (router as any).post('/channels', async (req: express.Request, res: express.Response) => {
-    const serverId = req.body.serverId as UUID;
-    const { name, type, sourceType, sourceId, metadata } = req.body;
-    const topic = req.body.topic ?? req.body.description;
-
-    if (!serverId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: serverId.',
-      });
-    }
-
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: name.',
-      });
-    }
-
-    if (!type) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: type.',
-      });
-    }
-
-    if (!validateUuid(serverId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid serverId format',
-      });
-    }
-
-    try {
-      const channel = await serverInstance.createChannel({
-        messageServerId: serverId,
-        name,
-        type,
-        sourceType,
-        sourceId,
-        topic,
-        metadata,
-      });
-      res.status(201).json({ success: true, data: { channel } });
-    } catch (error) {
-      logger.error(
-        '[Messages Router /channels] Error creating channel:',
-        error instanceof Error ? error.message : String(error)
-      );
-      res.status(500).json({ success: false, error: 'Failed to create channel' });
-    }
-  });
 
   // GET /dm-channel?targetUserId=<target_user_id>
   (router as any).get('/dm-channel', async (req: express.Request, res: express.Response) => {
@@ -423,7 +369,7 @@ export function createChannelsRouter(
       return;
     }
 
-    let dmServerIdToUse: UUID = serverInstance.serverId;
+    let dmServerIdToUse: UUID = serverInstance.messageServerId;
 
     try {
       if (providedDmServerId) {
@@ -436,7 +382,7 @@ export function createChannelsRouter(
             `Provided dmServerId ${providedDmServerId} not found, using current server ID.`
           );
           // Use current server if provided ID is invalid
-          dmServerIdToUse = serverInstance.serverId;
+          dmServerIdToUse = serverInstance.messageServerId;
         }
       }
 
@@ -461,26 +407,26 @@ export function createChannelsRouter(
     }
   });
 
-  // POST /central-channels (for creating group channels)
-  (router as any).post('/central-channels', async (req: express.Request, res: express.Response) => {
+  // POST /channels (for creating group channels)
+  (router as any).post('/channels', async (req: express.Request, res: express.Response) => {
     const {
       name,
       participantCentralUserIds,
       type = ChannelType.GROUP,
-      server_id,
+      message_server_id,
       metadata,
     } = req.body;
 
     // Validate server ID format
-    if (!validateUuid(server_id)) {
+    if (!validateUuid(message_server_id)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid server_id format',
+        error: 'Invalid message_server_id format',
       });
     }
 
     // RLS security: Only allow access to current server's data
-    const isValidServerId = server_id === serverInstance.serverId;
+    const isValidServerId = message_server_id === serverInstance.messageServerId;
 
     if (
       !name ||
@@ -503,7 +449,7 @@ export function createChannelsRouter(
 
     try {
       const channelData = {
-        messageServerId: server_id as UUID,
+        messageServerId: message_server_id as UUID,
         name,
         type: type as ChannelType,
         metadata: {
@@ -521,7 +467,7 @@ export function createChannelsRouter(
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(
-        '[Messages Router /central-channels] Error creating group channel:',
+        '[Messages Router /channels] Error creating group channel:',
         errorMessage
       );
       res
@@ -532,7 +478,7 @@ export function createChannelsRouter(
 
   // Get channel details
   (router as any).get(
-    '/central-channels/:channelId/details',
+    '/channels/:channelId/details',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       if (!channelId) {
@@ -556,7 +502,7 @@ export function createChannelsRouter(
 
   // Get channel participants
   (router as any).get(
-    '/central-channels/:channelId/participants',
+    '/channels/:channelId/participants',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       if (!channelId) {
@@ -575,9 +521,9 @@ export function createChannelsRouter(
     }
   );
 
-  // POST /central-channels/:channelId/agents - Add agent to channel
+  // POST /channels/:channelId/agents - Add agent to channel
   (router as any).post(
-    '/central-channels/:channelId/agents',
+    '/channels/:channelId/agents',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       const { agentId } = req.body;
@@ -629,9 +575,9 @@ export function createChannelsRouter(
     }
   );
 
-  // DELETE /central-channels/:channelId/agents/:agentId - Remove agent from channel
+  // DELETE /channels/:channelId/agents/:agentId - Remove agent from channel
   (router as any).delete(
-    '/central-channels/:channelId/agents/:agentId',
+    '/channels/:channelId/agents/:agentId',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       const agentId = validateUuid(req.params.agentId);
@@ -693,9 +639,9 @@ export function createChannelsRouter(
     }
   );
 
-  // GET /central-channels/:channelId/agents - List agents in channel
+  // GET /channels/:channelId/agents - List agents in channel
   (router as any).get(
-    '/central-channels/:channelId/agents',
+    '/channels/:channelId/agents',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
 
@@ -738,7 +684,7 @@ export function createChannelsRouter(
 
   // Delete single message
   (router as any).delete(
-    '/central-channels/:channelId/messages/:messageId',
+    '/channels/:channelId/messages/:messageId',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       const messageId = validateUuid(req.params.messageId);
@@ -781,7 +727,7 @@ export function createChannelsRouter(
 
   // Clear all messages in channel
   (router as any).delete(
-    '/central-channels/:channelId/messages',
+    '/channels/:channelId/messages',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       if (!channelId) {
@@ -819,7 +765,7 @@ export function createChannelsRouter(
 
   // Update channel
   (router as any).patch(
-    '/central-channels/:channelId',
+    '/channels/:channelId',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       if (!channelId) {
@@ -852,7 +798,7 @@ export function createChannelsRouter(
 
   // Delete entire channel
   (router as any).delete(
-    '/central-channels/:channelId',
+    '/channels/:channelId',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       if (!channelId) {
@@ -953,7 +899,7 @@ export function createChannelsRouter(
   );
 
   (router as any).post(
-    '/central-channels/:channelId/generate-title',
+    '/channels/:channelId/generate-title',
     async (req: express.Request, res: express.Response) => {
       const channelId = validateUuid(req.params.channelId);
       const { agentId } = req.body;

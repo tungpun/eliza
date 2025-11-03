@@ -82,7 +82,7 @@ describe('MessageBusService', () => {
         });
       }
       // Mock channel participants endpoint
-      if (url.includes('/api/messaging/central-channels/') && url.includes('/participants')) {
+      if (url.includes('/api/messaging/channels/') && url.includes('/participants')) {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -251,7 +251,7 @@ describe('MessageBusService', () => {
       // Clear previous mocks and set up specific mock for this test
       mockFetch.mockClear();
       mockFetch.mockImplementation((url) => {
-        if (url.includes('/api/messaging/central-channels/') && url.includes('/participants')) {
+        if (url.includes('/api/messaging/channels/') && url.includes('/participants')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({
@@ -263,7 +263,7 @@ describe('MessageBusService', () => {
             }),
           });
         }
-        if (url.includes('/api/messaging/central-channels/') && url.includes('/details')) {
+        if (url.includes('/api/messaging/channels/') && url.includes('/details')) {
           return Promise.resolve({
             ok: true,
             json: async () => ({
@@ -308,7 +308,7 @@ describe('MessageBusService', () => {
       // Clear previous mocks and set up error mock for this test
       mockFetch.mockClear();
       mockFetch.mockImplementation((url) => {
-        if (url.includes('/api/messaging/central-channels/') && url.includes('/participants')) {
+        if (url.includes('/api/messaging/channels/') && url.includes('/participants')) {
           return Promise.reject(new Error('Network error'));
         }
         return Promise.resolve({
