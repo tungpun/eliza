@@ -2158,6 +2158,7 @@ export abstract class BaseDrizzleAdapter extends DatabaseAdapter<any> {
         name: room.name ?? undefined,
         agentId: room.agentId as UUID,
         messageServerId: room.messageServerId as UUID,
+        serverId: room.messageServerId as UUID, // Backward compatibility alias
         worldId: room.worldId as UUID,
         channelId: room.channelId as UUID,
         type: room.type as ChannelType,
@@ -2182,6 +2183,7 @@ export abstract class BaseDrizzleAdapter extends DatabaseAdapter<any> {
         name: room.name ?? undefined,
         agentId: room.agentId as UUID,
         messageServerId: room.messageServerId as UUID,
+        serverId: room.messageServerId as UUID, // Backward compatibility alias
         worldId: room.worldId as UUID,
         channelId: room.channelId as UUID,
         type: room.type as ChannelType,
