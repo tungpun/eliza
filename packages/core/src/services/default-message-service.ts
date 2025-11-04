@@ -362,7 +362,7 @@ export class DefaultMessageService implements IMessageService {
         const currentResponseId = agentResponses.get(message.roomId);
         if (currentResponseId !== responseId) {
           runtime.logger.info(
-            `Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`
+            `Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}, responseId: ${responseId}, currentResponseId: ${currentResponseId}`
           );
           return {
             didRespond: false,
@@ -625,11 +625,11 @@ export class DefaultMessageService implements IMessageService {
     // Support runtime-configurable overrides via env settings
     const customChannels = normalizeEnvList(
       runtime.getSetting('ALWAYS_RESPOND_CHANNELS') ||
-        runtime.getSetting('SHOULD_RESPOND_BYPASS_TYPES')
+      runtime.getSetting('SHOULD_RESPOND_BYPASS_TYPES')
     );
     const customSources = normalizeEnvList(
       runtime.getSetting('ALWAYS_RESPOND_SOURCES') ||
-        runtime.getSetting('SHOULD_RESPOND_BYPASS_SOURCES')
+      runtime.getSetting('SHOULD_RESPOND_BYPASS_SOURCES')
     );
 
     const respondChannels = new Set(
@@ -1092,15 +1092,15 @@ export class DefaultMessageService implements IMessageService {
 
     const responseMessages: Memory[] = responseContent
       ? [
-          {
-            id: asUUID(v4()),
-            entityId: runtime.agentId,
-            agentId: runtime.agentId,
-            content: responseContent,
-            roomId: message.roomId,
-            createdAt: Date.now(),
-          },
-        ]
+        {
+          id: asUUID(v4()),
+          entityId: runtime.agentId,
+          agentId: runtime.agentId,
+          content: responseContent,
+          roomId: message.roomId,
+          createdAt: Date.now(),
+        },
+      ]
       : [];
 
     return {
