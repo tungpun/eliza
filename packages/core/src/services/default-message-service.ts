@@ -112,7 +112,7 @@ export class DefaultMessageService implements IMessageService {
 
     try {
       runtime.logger.info(
-        `[MessageService] Message received from ${message.entityId} in room ${message.roomId}`
+        `[Debug MessageService] Message received from ${message.entityId} in room ${message.roomId}`
       );
 
       // Track this response ID
@@ -125,7 +125,7 @@ export class DefaultMessageService implements IMessageService {
       const previousResponseId = agentResponses.get(message.roomId);
       if (previousResponseId) {
         logger.warn(
-          `[MessageService] Updating response ID for room ${message.roomId} from ${previousResponseId} to ${responseId}`
+          `[Debug MessageService] Updating response ID for room ${message.roomId} from ${previousResponseId} to ${responseId}`
         );
       }
       agentResponses.set(message.roomId, responseId);
@@ -184,7 +184,7 @@ export class DefaultMessageService implements IMessageService {
       return result;
     } catch (error: any) {
       clearTimeout(timeoutId);
-      runtime.logger.error({ error }, '[MessageService] Error in handleMessage:');
+      runtime.logger.error({ error }, '[Debug MessageService] Error in handleMessage:');
       throw error;
     }
   }
@@ -207,7 +207,7 @@ export class DefaultMessageService implements IMessageService {
 
       // Skip messages from self
       if (message.entityId === runtime.agentId) {
-        runtime.logger.debug(`[MessageService] Skipping message from self (${runtime.agentId})`);
+        runtime.logger.debug(`[Debug MessageService] Skipping message from self (${runtime.agentId})`);
         await this.emitRunEnded(runtime, runId, message, startTime, 'self');
         return {
           didRespond: false,
@@ -219,17 +219,17 @@ export class DefaultMessageService implements IMessageService {
       }
 
       runtime.logger.debug(
-        `[MessageService] Processing message: ${truncateToCompleteSentence(message.content.text || '', 50)}...`
+        `[Debug MessageService] Processing message: ${truncateToCompleteSentence(message.content.text || '', 50)}...`
       );
 
       // Save the incoming message to memory
-      runtime.logger.debug('[MessageService] Saving message to memory and queueing embeddings');
+      runtime.logger.debug('[Debug MessageService] Saving message to memory and queueing embeddings');
       let memoryToQueue: Memory;
 
       if (message.id) {
         const existingMemory = await runtime.getMemoryById(message.id);
         if (existingMemory) {
-          runtime.logger.debug('[MessageService] Memory already exists, skipping creation');
+          runtime.logger.debug('[Debug MessageService] Memory already exists, skipping creation');
           memoryToQueue = existingMemory;
         } else {
           const createdMemoryId = await runtime.createMemory(message, 'messages');
@@ -248,7 +248,7 @@ export class DefaultMessageService implements IMessageService {
       const defLllmOff = parseBooleanFromText(runtime.getSetting('BOOTSTRAP_DEFLLMOFF'));
 
       if (defLllmOff && agentUserState === null) {
-        runtime.logger.debug('[MessageService] LLM is off by default');
+        runtime.logger.debug('[Debug MessageService] LLM is off by default');
         await this.emitRunEnded(runtime, runId, message, startTime, 'off');
         return {
           didRespond: false,
@@ -264,7 +264,7 @@ export class DefaultMessageService implements IMessageService {
         agentUserState === 'MUTED' &&
         !message.content.text?.toLowerCase().includes(runtime.character.name.toLowerCase())
       ) {
-        runtime.logger.debug(`[MessageService] Ignoring muted room ${message.roomId}`);
+        runtime.logger.debug(`[Debug MessageService] Ignoring muted room ${message.roomId}`);
         await this.emitRunEnded(runtime, runId, message, startTime, 'muted');
         return {
           didRespond: false,
@@ -306,7 +306,7 @@ export class DefaultMessageService implements IMessageService {
       );
 
       runtime.logger.debug(
-        `[MessageService] Response decision: ${JSON.stringify(responseDecision)}`
+        `[Debug MessageService]Response decision: ${JSON.stringify(responseDecision)}`
       );
 
       let shouldRespondToMessage = true;
@@ -314,7 +314,7 @@ export class DefaultMessageService implements IMessageService {
       // If we can skip the evaluation, use the decision directly
       if (responseDecision.skipEvaluation) {
         runtime.logger.debug(
-          `[MessageService] Skipping evaluation for ${runtime.character.name} (${responseDecision.reason})`
+          `[Debug MessageService] Skipping evaluation for ${runtime.character.name} (${responseDecision.reason})`
         );
         shouldRespondToMessage = responseDecision.shouldRespond;
       } else {
@@ -325,17 +325,17 @@ export class DefaultMessageService implements IMessageService {
         });
 
         runtime.logger.debug(
-          `[MessageService] Using LLM evaluation for ${runtime.character.name} (${responseDecision.reason})`
+          `[Debug MessageService] Using LLM evaluation for ${runtime.character.name} (${responseDecision.reason})`
         );
 
         const response = await runtime.useModel(ModelType.TEXT_SMALL, {
           prompt: shouldRespondPrompt,
         });
 
-        runtime.logger.debug(`[MessageService] LLM evaluation result:\n${response}`);
+        runtime.logger.debug(`[Debug MessageService] LLM evaluation result:\n${response}`);
 
         const responseObject = parseKeyValueXml(response);
-        runtime.logger.debug({ responseObject }, '[MessageService] Parsed evaluation result:');
+        runtime.logger.debug({ responseObject }, '[Debug MessageService] Parsed evaluation result:');
 
         // If an action is provided, the agent intends to respond in some way
         const nonResponseActions = ['IGNORE', 'NONE'];
@@ -387,7 +387,7 @@ export class DefaultMessageService implements IMessageService {
             if (responseContent.providers && responseContent.providers.length > 0) {
               runtime.logger.debug(
                 { providers: responseContent.providers },
-                '[MessageService] Simple response used providers'
+                '[Debug MessageService] Simple response used providers'
               );
             }
             if (callback) {
@@ -407,7 +407,7 @@ export class DefaultMessageService implements IMessageService {
       } else {
         // Agent decided not to respond
         runtime.logger.debug(
-          '[MessageService] Agent decided not to respond (shouldRespond is false).'
+          '[Debug MessageService] Agent decided not to respond (shouldRespond is false).'
         );
 
         // Check if we still have the latest response ID
@@ -430,7 +430,7 @@ export class DefaultMessageService implements IMessageService {
 
         if (!message.id) {
           runtime.logger.error(
-            '[MessageService] Message ID is missing, cannot create ignore response.'
+            '[Debug MessageService] Message ID is missing, cannot create ignore response.'
           );
           await this.emitRunEnded(runtime, runId, message, startTime, 'noMessageId');
           return {
@@ -466,7 +466,7 @@ export class DefaultMessageService implements IMessageService {
         };
         await runtime.createMemory(ignoreMemory, 'messages');
         runtime.logger.debug(
-          '[MessageService] Saved ignore response to memory',
+          '[Debug MessageService] Saved ignore response to memory',
           `memoryId: ${ignoreMemory.id}`
         );
       }
@@ -677,7 +677,7 @@ export class DefaultMessageService implements IMessageService {
     if (!attachments || attachments.length === 0) {
       return [];
     }
-    runtime.logger.debug(`[MessageService] Processing ${attachments.length} attachment(s)`);
+    runtime.logger.debug(`[Debug MessageService] Processing ${attachments.length} attachment(s)`);
 
     const processedAttachments: Media[] = [];
 
@@ -691,7 +691,7 @@ export class DefaultMessageService implements IMessageService {
         // Only process images that don't already have descriptions
         if (attachment.contentType === ContentType.IMAGE && !attachment.description) {
           runtime.logger.debug(
-            `[MessageService] Generating description for image: ${attachment.url}`
+            `[Debug MessageService] Generating description for image: ${attachment.url}`
           );
 
           let imageUrl = url;
@@ -722,7 +722,7 @@ export class DefaultMessageService implements IMessageService {
                 processedAttachment.text = parsedXml.text || parsedXml.description || '';
 
                 runtime.logger.debug(
-                  `[MessageService] Generated description: ${processedAttachment.description?.substring(0, 100)}...`
+                  `[Debug MessageService] Generated description: ${processedAttachment.description?.substring(0, 100)}...`
                 );
               } else {
                 // Fallback: Try simple regex parsing
@@ -737,11 +737,11 @@ export class DefaultMessageService implements IMessageService {
                   processedAttachment.text = textMatch?.[1] || descMatch?.[1] || '';
 
                   runtime.logger.debug(
-                    `[MessageService] Used fallback XML parsing - description: ${processedAttachment.description?.substring(0, 100)}...`
+                    `[Debug MessageService] Used fallback XML parsing - description: ${processedAttachment.description?.substring(0, 100)}...`
                   );
                 } else {
                   runtime.logger.warn(
-                    `[MessageService] Failed to parse XML response for image description`
+                    `[Debug MessageService] Failed to parse XML response for image description`
                   );
                 }
               }
@@ -752,15 +752,15 @@ export class DefaultMessageService implements IMessageService {
               processedAttachment.text = response.description;
 
               runtime.logger.debug(
-                `[MessageService] Generated description: ${processedAttachment.description?.substring(0, 100)}...`
+                `[Debug MessageService] Generated description: ${processedAttachment.description?.substring(0, 100)}...`
               );
             } else {
               runtime.logger.warn(
-                `[MessageService] Unexpected response format for image description`
+                `[Debug MessageService] Unexpected response format for image description`
               );
             }
           } catch (error) {
-            runtime.logger.error({ error }, `[MessageService] Error generating image description:`);
+            runtime.logger.error({ error }, `[Debug MessageService] Error generating image description:`);
           }
         } else if (attachment.contentType === ContentType.DOCUMENT && !attachment.text) {
           const res = await fetch(url);
@@ -771,7 +771,7 @@ export class DefaultMessageService implements IMessageService {
 
           if (isPlainText) {
             runtime.logger.debug(
-              `[MessageService] Processing plain text document: ${attachment.url}`
+              `[Debug MessageService] Processing plain text document: ${attachment.url}`
             );
 
             const textContent = await res.text();
@@ -779,11 +779,11 @@ export class DefaultMessageService implements IMessageService {
             processedAttachment.title = processedAttachment.title || 'Text File';
 
             runtime.logger.debug(
-              `[MessageService] Extracted text content (first 100 chars): ${processedAttachment.text?.substring(0, 100)}...`
+              `[Debug MessageService] Extracted text content (first 100 chars): ${processedAttachment.text?.substring(0, 100)}...`
             );
           } else {
             runtime.logger.warn(
-              `[MessageService] Skipping non-plain-text document: ${contentType}`
+              `[Debug MessageService] Skipping non-plain-text document: ${contentType}`
             );
           }
         }
@@ -792,7 +792,7 @@ export class DefaultMessageService implements IMessageService {
       } catch (error) {
         runtime.logger.error(
           { error, attachmentUrl: attachment.url },
-          `[MessageService] Failed to process attachment ${attachment.url}:`
+          `[Debug MessageService] Failed to process attachment ${attachment.url}:`
         );
         processedAttachments.push(attachment);
       }
@@ -829,10 +829,10 @@ export class DefaultMessageService implements IMessageService {
     while (retries < opts.maxRetries && (!responseContent?.thought || !responseContent?.actions)) {
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
 
-      runtime.logger.debug({ response }, '[MessageService] *** Raw LLM Response ***');
+      runtime.logger.debug({ response }, '[Debug MessageService] *** Raw LLM Response ***');
 
       const parsedXml = parseKeyValueXml(response);
-      runtime.logger.debug({ parsedXml }, '[MessageService] *** Parsed XML Content ***');
+      runtime.logger.debug({ parsedXml }, '[Debug MessageService] *** Parsed XML Content ***');
 
       if (parsedXml) {
         responseContent = {
@@ -851,7 +851,7 @@ export class DefaultMessageService implements IMessageService {
       if (!responseContent?.thought || !responseContent?.actions) {
         runtime.logger.warn(
           { response, parsedXml, responseContent },
-          '[MessageService] *** Missing required fields (thought or actions), retrying... ***'
+          '[Debug MessageService] *** Missing required fields (thought or actions), retrying... ***'
         );
       }
     }
@@ -1146,12 +1146,12 @@ export class DefaultMessageService implements IMessageService {
   async deleteMessage(runtime: IAgentRuntime, message: Memory): Promise<void> {
     try {
       if (!message.id) {
-        runtime.logger.error('[MessageService] Cannot delete memory: message ID is missing');
+        runtime.logger.error('[Debug MessageService] Cannot delete memory: message ID is missing');
         return;
       }
 
       runtime.logger.info(
-        '[MessageService] Deleting memory for message',
+        '[Debug MessageService] Deleting memory for message',
         message.id,
         'from room',
         message.roomId
@@ -1159,10 +1159,10 @@ export class DefaultMessageService implements IMessageService {
       await runtime.deleteMemory(message.id);
       runtime.logger.debug(
         { messageId: message.id },
-        '[MessageService] Successfully deleted memory for message'
+        '[Debug MessageService] Successfully deleted memory for message'
       );
     } catch (error: unknown) {
-      runtime.logger.error({ error }, '[MessageService] Error in deleteMessage:');
+      runtime.logger.error({ error }, '[Debug MessageService] Error in deleteMessage:');
       throw error;
     }
   }
@@ -1179,7 +1179,7 @@ export class DefaultMessageService implements IMessageService {
   async clearChannel(runtime: IAgentRuntime, roomId: UUID, channelId: string): Promise<void> {
     try {
       runtime.logger.info(
-        `[MessageService] Clearing message memories from channel ${channelId} -> room ${roomId}`
+        `[Debug MessageService] Clearing message memories from channel ${channelId} -> room ${roomId}`
       );
 
       // Get all message memories for this room
@@ -1189,7 +1189,7 @@ export class DefaultMessageService implements IMessageService {
       });
 
       runtime.logger.info(
-        `[MessageService] Found ${memories.length} message memories to delete from channel ${channelId}`
+        `[Debug MessageService] Found ${memories.length} message memories to delete from channel ${channelId}`
       );
 
       // Delete each message memory
@@ -1202,17 +1202,17 @@ export class DefaultMessageService implements IMessageService {
           } catch (error) {
             runtime.logger.warn(
               { error, memoryId: memory.id },
-              `[MessageService] Failed to delete message memory ${memory.id}:`
+              `[Debug MessageService] Failed to delete message memory ${memory.id}:`
             );
           }
         }
       }
 
       runtime.logger.info(
-        `[MessageService] Successfully cleared ${deletedCount}/${memories.length} message memories from channel ${channelId}`
+        `[Debug MessageService] Successfully cleared ${deletedCount}/${memories.length} message memories from channel ${channelId}`
       );
     } catch (error: unknown) {
-      runtime.logger.error({ error }, '[MessageService] Error in clearChannel:');
+      runtime.logger.error({ error }, '[Debug MessageService] Error in clearChannel:');
       throw error;
     }
   }
