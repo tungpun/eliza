@@ -491,23 +491,24 @@ export class ElizaOS extends EventTarget {
       // ========== SYNC MODE ==========
       // Wait for response
 
-      const result = await runtime.messageService.handleMessage(
-        runtime,
-        userMessage,
-        undefined,
-        processingOptions
-      );
+      // const result = await runtime.messageService.handleMessage(
+      //   runtime,
+      //   userMessage,
+      //   undefined,
+      //   processingOptions
+      // );
 
-      if (options?.onComplete) await options.onComplete();
+      // if (options?.onComplete) await options.onComplete();
 
-      // Emit event for tracking
-      this.dispatchEvent(
-        new CustomEvent('message:sent', {
-          detail: { agentId, messageId, mode: 'sync', result },
-        })
-      );
+      // // Emit event for tracking
+      // this.dispatchEvent(
+      //   new CustomEvent('message:sent', {
+      //     detail: { agentId, messageId, mode: 'sync', result },
+      //   })
+      // );
 
-      return { messageId, userMessage, result };
+      // return { messageId, userMessage, result };
+      return { messageId, userMessage, result: undefined };
     }
   }
 

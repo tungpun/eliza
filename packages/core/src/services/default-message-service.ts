@@ -97,7 +97,7 @@ export class DefaultMessageService implements IMessageService {
     options?: MessageProcessingOptions
   ): Promise<MessageProcessingResult> {
     const opts = {
-      maxRetries: options?.maxRetries ?? 3,
+      maxRetries: options?.maxRetries ?? 0,
       timeoutDuration: options?.timeoutDuration ?? 60 * 60 * 1000, // 1 hour
       useMultiStep:
         options?.useMultiStep ?? parseBooleanFromText(runtime.getSetting('USE_MULTI_STEP')),
@@ -109,6 +109,10 @@ export class DefaultMessageService implements IMessageService {
     // Set up timeout monitoring
     let timeoutId: NodeJS.Timeout | undefined = undefined;
     const responseId = v4();
+
+    runtime.logger.info(
+      `[MessageService] PPPPPPPPPPx03 Response ID: ${responseId} is initializeddd`
+    );
 
     try {
       runtime.logger.info(
@@ -125,7 +129,7 @@ export class DefaultMessageService implements IMessageService {
       const previousResponseId = agentResponses.get(message.roomId);
       if (previousResponseId) {
         logger.warn(
-          `[MessageService] Updating response ID for room ${message.roomId} from ${previousResponseId} to ${responseId}`
+          `[MessageService] PPPPPPPPx Updating response ID for room ${message.roomId} from ${previousResponseId} to ${responseId}`
         );
       }
       agentResponses.set(message.roomId, responseId);
@@ -165,7 +169,10 @@ export class DefaultMessageService implements IMessageService {
           reject(new Error('Run exceeded timeout'));
         }, opts.timeoutDuration);
       });
-
+      // print "PPPPP calling processMessage"
+      runtime.logger.info(
+        `[MessageService] PPPPPPPPx Calling processMessage`
+      );
       const processingPromise = this.processMessage(
         runtime,
         message,
@@ -218,8 +225,18 @@ export class DefaultMessageService implements IMessageService {
         };
       }
 
-      runtime.logger.debug(
-        `[MessageService] Processing message: ${truncateToCompleteSentence(message.content.text || '', 50)}...`
+      runtime.logger.info(
+        `[MessageService] PPPPPPPPx Processing message: ${truncateToCompleteSentence(message.content.text || '', 50)}...`
+      );
+
+      // print the responseId
+      runtime.logger.info(
+        `[MessageService] PPPPPPPPx Response ID: ${responseId}`
+      );
+
+      // print the current responseId
+      runtime.logger.info(
+        `[MessageService] PPPPPPPPx Current Response ID: ${agentResponses.get(message.roomId)}`
       );
 
       // Save the incoming message to memory
@@ -362,7 +379,7 @@ export class DefaultMessageService implements IMessageService {
         const currentResponseId = agentResponses.get(message.roomId);
         if (currentResponseId !== responseId) {
           runtime.logger.info(
-            `Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}`
+            `RRRRRRRRR Response discarded - newer message being processed for agent: ${runtime.agentId}, room: ${message.roomId}, responseId: ${responseId}, currentResponseId: ${currentResponseId}`
           );
           return {
             didRespond: false,
@@ -625,11 +642,11 @@ export class DefaultMessageService implements IMessageService {
     // Support runtime-configurable overrides via env settings
     const customChannels = normalizeEnvList(
       runtime.getSetting('ALWAYS_RESPOND_CHANNELS') ||
-        runtime.getSetting('SHOULD_RESPOND_BYPASS_TYPES')
+      runtime.getSetting('SHOULD_RESPOND_BYPASS_TYPES')
     );
     const customSources = normalizeEnvList(
       runtime.getSetting('ALWAYS_RESPOND_SOURCES') ||
-        runtime.getSetting('SHOULD_RESPOND_BYPASS_SOURCES')
+      runtime.getSetting('SHOULD_RESPOND_BYPASS_SOURCES')
     );
 
     const respondChannels = new Set(
@@ -1092,15 +1109,15 @@ export class DefaultMessageService implements IMessageService {
 
     const responseMessages: Memory[] = responseContent
       ? [
-          {
-            id: asUUID(v4()),
-            entityId: runtime.agentId,
-            agentId: runtime.agentId,
-            content: responseContent,
-            roomId: message.roomId,
-            createdAt: Date.now(),
-          },
-        ]
+        {
+          id: asUUID(v4()),
+          entityId: runtime.agentId,
+          agentId: runtime.agentId,
+          content: responseContent,
+          roomId: message.roomId,
+          createdAt: Date.now(),
+        },
+      ]
       : [];
 
     return {
